@@ -25,11 +25,16 @@ def ask(prompt: str) -> str:
     api_key = os.environ["WATSONX_API_KEY"]
     space_id = os.environ["WATSONX_SPACE_ID"]
     token = _iam_token(api_key)
+    # granite-4 instruct models expect the chat template; raw continuation
+    # makes the model ramble past the answer and echo stray markup.
+    chat = ("<|start_of_role|>user<|end_of_role|>" + prompt +
+            "<|end_of_text|>\n<|start_of_role|>assistant<|end_of_role|>")
     payload = {
         "model_id": MODEL,
         "space_id": space_id,
-        "input": prompt,
-        "parameters": {"max_new_tokens": 90, "temperature": 0.2},
+        "input": chat,
+        "parameters": {"max_new_tokens": 160, "temperature": 0.2,
+                       "stop_sequences": ["<|end_of_text|>"]},
     }
     req = urllib.request.Request(
         f"https://{REGION}.ml.cloud.ibm.com/ml/v1/text/generation?version=2024-05-01",
