@@ -83,6 +83,13 @@ class Handler(BaseHTTPRequestHandler):
                     f"<th>ciphertext prefix (hex)</th><th>wrapped key</th><th>share</th></tr>{trs}</table>"
                     "</body></html>")
             self._send(body.encode())
+        elif self.path == "/rows.json":
+            rows = dump_rows()
+            self._send(json.dumps({"rows": [
+                {"id": r[0], "ts": r[1], "direction": r[2],
+                 "ciphertext_bytes": r[3], "ciphertext_prefix": r[4],
+                 "wrapped_key_bytes": r[5], "share_x": r[6]} for r in rows
+            ]}).encode(), "application/json")
         elif self.path.startswith("/fetch?id="):
             row_id = int(self.path.split("id=")[1])
             blob = fetch(row_id)
