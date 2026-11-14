@@ -191,13 +191,18 @@ $('run').onclick = async () => {
     return;
   }
 
+  await renderData(data, 450, false);
+  $('run').disabled = false;
+};
+
+async function renderData(data, pause, doScroll){
   // 1 - encryption artifacts
   $('d-encrypt').innerHTML =
     '<span>ciphertext</span><b>'+data.prompt_blob.ciphertext_prefix+'… ('+data.prompt_blob.ciphertext_bytes+' bytes)</b>'+
     '<span>wrapped key</span><b>'+data.prompt_blob.wrapped_key_prefix+'…</b>'+
     '<span>nonces</span><b>'+data.prompt_blob.nonce_ct+' / '+data.prompt_blob.nonce_wrap+'</b>'+
     '<span>stored as</span><b>relay row #'+data.prompt_row+'</b>';
-  stage('s-encrypt','done'); await sleep(450);
+  stage('s-encrypt','done'); await sleep(pause);
 
   // 2 - shares
   stage('s-shares','active');
@@ -206,7 +211,7 @@ $('run').onclick = async () => {
     '<div class="who">held by: '+s.held_by+'</div>'+
     '<div class="who">'+s.bytes+' bytes · value stays on the '+s.held_by+'</div>'+
     '<div class="alone">alone: reveals nothing</div></div>').join('');
-  stage('s-shares','done'); await sleep(450);
+  stage('s-shares','done'); await sleep(pause);
 
   // 3 - relay rows (read back from the relay itself)
   stage('s-relay','active');
@@ -214,7 +219,9 @@ $('run').onclick = async () => {
   $('d-rows').innerHTML = '<tr><th>row</th><th>direction</th><th>ciphertext</th><th>share</th></tr>' +
     rows.map(r => '<tr><td class="id">#'+r.id+'</td><td>'+r.direction+'</td>'+
       '<td class="pre">'+r.ciphertext_prefix+'… ('+r.ciphertext_bytes+' B)</td><td>x='+r.share_x+'</td></tr>').join('');
-  stage('s-relay','done'); await sleep(450);
+  stage('s-relay','done');
+  if(doScroll){ window.scrollTo({top: $('s-relay').offsetTop - 90, behavior: 'smooth'}); }
+  await sleep(pause);
 
   // 4 - llm + answer
   stage('s-llm','active');
@@ -224,11 +231,24 @@ $('run').onclick = async () => {
     '<span>latency</span><b>'+data.llm.latency_ms+' ms</b>'+
     '<span>answer stored as</span><b>relay row #'+data.answer_row+' (ciphertext, '+data.answer_blob.ciphertext_bytes+' bytes)</b>';
   stage('s-llm','done');
+  await sleep(Math.min(pause, 1200));
   $('answer-text').textContent = data.llm.answer;
   $('answer-meta').textContent = 'real hosted call · '+data.llm.model+' · prompt row #'+data.prompt_row+' · answer row #'+data.answer_row;
   $('answer').classList.add('show');
-  $('run').disabled = false;
-};
+  if(doScroll){ setTimeout(() => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 800); }
+}
+
+async function replay(){
+  let data;
+  try{ data = await (await fetch('/api/last')).json(); }catch(e){ return; }
+  if(!data || !data.question) return;
+  $('prompt').value = data.question;
+  ['s-encrypt','s-shares','s-relay','s-llm'].forEach(id => stage(id, null));
+  stage('s-encrypt','active');
+  await sleep(3000);
+  await renderData(data, 2500, true);
+}
+if(location.hash === '#replay'){ window.addEventListener('load', () => setTimeout(replay, 500)); }
 </script>
 </body>
 </html>
