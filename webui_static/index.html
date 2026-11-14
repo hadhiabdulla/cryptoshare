@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CryptoShare - split-key encrypted LLM relay</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#111722; --panel2:#161f2d; --line:#223047;
+    --txt:#e8eef7; --dim:#8ea0b8; --accent:#4cc2ff; --green:#3fb950;
+    --amber:#e3a008; --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:15px/1.55 -apple-system,'Segoe UI',Inter,Roboto,sans-serif;min-height:100vh}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 22px 60px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .logo{font-size:26px;font-weight:700;letter-spacing:-.4px}
+  .logo b{color:var(--accent)}
+  .tag{color:var(--dim);font-size:14px}
+  .pills{margin-left:auto;display:flex;gap:8px}
+  .pill{font-size:12px;padding:4px 11px;border-radius:99px;border:1px solid var(--line);color:var(--dim);background:var(--panel)}
+  .pill.on{color:var(--green);border-color:#1f5c33}
+  .pill.warn{color:var(--amber);border-color:#5c471f}
+  .lede{color:var(--dim);max-width:70ch;margin-bottom:24px}
+
+  .composer{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px}
+  textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);
+    font:15px/1.5 inherit;padding:12px 14px;min-height:74px;resize:vertical;outline:none}
+  textarea:focus{border-color:var(--accent)}
+  .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .chip{font-size:12.5px;color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer;background:transparent}
+  .chip:hover{color:var(--txt);border-color:var(--accent)}
+  button.run{margin-left:auto;background:var(--accent);color:#04222f;border:0;border-radius:10px;
+    font:600 15px/1 inherit;padding:13px 26px;cursor:pointer}
+  button.run:disabled{opacity:.45;cursor:default}
+
+  .flow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px}
+  @media(max-width:820px){.flow{grid-template-columns:1fr}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;opacity:.38;transition:opacity .4s,border-color .4s}
+  .stage.active{opacity:1;border-color:var(--accent)}
+  .stage.done{opacity:1}
+  .stage h3{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .stage .zone{margin-left:auto;font-size:10.5px;padding:2px 9px;border-radius:99px;text-transform:none;letter-spacing:.03em}
+  .zone.device{background:#0d2c1a;color:var(--green)}
+  .zone.relay{background:#12233a;color:var(--accent)}
+  .zone.provider{background:#33270c;color:var(--amber)}
+  .stage .big{font-size:15.5px;font-weight:600;margin-bottom:8px}
+  .kv{font-family:var(--mono);font-size:12px;color:var(--dim);display:grid;grid-template-columns:auto 1fr;gap:2px 12px;word-break:break-all}
+  .kv b{color:var(--txt);font-weight:500}
+  .shares{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .share{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:12px}
+  .share .idx{font-family:var(--mono);color:var(--accent);font-weight:600}
+  .share .who{color:var(--dim)}
+  .share .alone{color:var(--green);font-size:11px;margin-top:2px}
+  .relaybox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+  td,th{padding:5px 8px;text-align:left;border-bottom:1px solid var(--line);color:var(--dim)}
+  th{color:var(--txt);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  td.id,td.pre{color:var(--accent)}
+  .answer{background:var(--panel);border:1px solid #1f5c33;border-radius:14px;padding:18px;display:none;margin-bottom:26px}
+  .answer.show{display:block}
+  .answer h3{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--green);margin-bottom:8px}
+  .answer p{white-space:pre-wrap}
+  .meta{color:var(--dim);font-size:12.5px;margin-top:10px;font-family:var(--mono)}
+  .boundary{display:flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:26px;font-size:12px}
+  .boundary div{flex:1;padding:9px 12px}
+  .b-device{background:#0d2c1a;color:#b8f0c8}
+  .b-relay{background:#12233a;color:#bcd9f5}
+  .b-provider{background:#33270c;color:#f3d9a4}
+  footer{color:var(--dim);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px;max-width:80ch}
+  .err{background:#3a1420;border:1px solid #7a2440;color:#ffb3c2;border-radius:10px;padding:12px 14px;display:none;margin-bottom:20px;font-size:13.5px}
+  @media(max-width:520px){
+    .share{min-width:100%}
+    .relaybox{overflow-x:auto}
+    table{font-size:10.5px}
+    td,th{padding:4px 5px}
+    .kv{grid-template-columns:1fr;gap:0}
+    .kv b{margin-bottom:4px}
+    .boundary{flex-direction:column}
+    .stage .big{font-size:14px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Crypto<b>Share</b></div>
+    <div class="tag">split-key encrypted LLM relay</div>
+    <div class="pills">
+      <span class="pill" id="pill-relay">relay: checking…</span>
+      <span class="pill" id="pill-llm">model: …</span>
+    </div>
+  </header>
+  <p class="lede">Prompts are encrypted on this device with AES-256-GCM before anything leaves.
+    The 256-bit master key is split with Shamir's Secret Sharing (2-of-3) - the relay server stores only
+    ciphertext plus one share, never enough to rebuild the key.</p>
+
+  <div class="boundary">
+    <div class="b-device"><b>This device</b> - plaintext, master key, shares 1+2</div>
+    <div class="b-relay"><b>Relay (loopback)</b> - ciphertext + one share only</div>
+    <div class="b-provider"><b>LLM provider</b> - sees plaintext at inference (documented limitation)</div>
+  </div>
+
+  <div class="composer">
+    <textarea id="prompt" placeholder="Ask something…">Explain in two sentences how Shamir's secret sharing protects an API key.</textarea>
+    <div class="row">
+      <button class="chip" data-q="Explain in two sentences how Shamir's secret sharing protects an API key.">Shamir explainer</button>
+      <button class="chip" data-q="What does AES-GCM authentication protect against? One sentence.">AES-GCM question</button>
+      <button class="chip" data-q="Give one practical rule for storing API keys on a server.">Key storage rule</button>
+      <button class="run" id="run">Encrypt &amp; ask</button>
+    </div>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="flow">
+    <div class="stage" id="s-encrypt">
+      <h3>1 · Encrypt on device <span class="zone device">device zone</span></h3>
+      <div class="big">AES-256-GCM envelope, fresh data key per message</div>
+      <div class="kv" id="d-encrypt"><span>ciphertext</span><b>waiting…</b></div>
+    </div>
+    <div class="stage" id="s-shares">
+      <h3>2 · Split the master key <span class="zone device">device zone</span></h3>
+      <div class="big">Shamir 2-of-3 - any two shares rebuild it, one never does</div>
+      <div class="shares" id="d-shares"></div>
+    </div>
+    <div class="stage" id="s-relay">
+      <h3>3 · What the relay persists <span class="zone relay">relay zone</span></h3>
+      <div class="big">Ciphertext, wrapped keys, nonces, one share - no plaintext</div>
+      <div class="relaybox"><table id="d-rows">
+        <tr><th>row</th><th>direction</th><th>ciphertext</th><th>share</th></tr>
+        <tr><td colspan="4" style="color:var(--dim)">no rows yet this run</td></tr>
+      </table></div>
+    </div>
+    <div class="stage" id="s-llm">
+      <h3>4 · Hosted model call <span class="zone provider">exposure point</span></h3>
+      <div class="big" id="d-model">Recovered locally from shares 1+2, sent as an ordinary API request</div>
+      <div class="kv" id="d-llm"><span>status</span><b>waiting…</b></div>
+    </div>
+  </div>
+
+  <div class="answer" id="answer">
+    <h3>Answer - decrypted on this device, stored on the relay as ciphertext only</h3>
+    <p id="answer-text"></p>
+    <div class="meta" id="answer-meta"></div>
+  </div>
+
+  <footer>
+    Honest boundary: secret sharing removes the need to trust the relay's storage with the key.
+    It does not remove the provider's inference-time exposure - the model must see the prompt to answer it.
+    Confidential-inference approaches are future work; this prototype does not protect provider-side processing.
+  </footer>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function status(){
+  try{
+    const s = await (await fetch('/api/status')).json();
+    $('pill-relay').textContent = s.relay ? 'relay: connected' : 'relay: offline';
+    $('pill-relay').className = 'pill ' + (s.relay ? 'on' : 'warn');
+    $('pill-llm').textContent = 'model: ' + s.model;
+    $('pill-llm').className = 'pill ' + (s.llm_configured ? 'on' : 'warn');
+  }catch(e){ $('pill-relay').textContent = 'relay: offline'; }
+}
+status();
+if(location.hash === '#demo'){ window.addEventListener('load', () => setTimeout(() => $('run').click(), 600));
+  const sc = setInterval(() => { if($('answer').classList.contains('show')){ clearInterval(sc); setTimeout(() => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 1200); } }, 400); }
+
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => { $('prompt').value = c.dataset.q; });
+
+function stage(id, cls){ const el = $(id); el.classList.remove('active','done'); if(cls) el.classList.add(cls); }
+
+$('run').onclick = async () => {
+  const q = $('prompt').value.trim();
+  if(!q) return;
+  $('run').disabled = true; $('err').style.display = 'none';
+  ['s-encrypt','s-shares','s-relay','s-llm'].forEach(id => stage(id, null));
+  $('answer').classList.remove('show');
+  stage('s-encrypt','active');
+  let data;
+  try{
+    const res = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:q})});
+    data = await res.json();
+    if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+  }catch(e){
+    $('err').textContent = 'Run failed: ' + e.message;
+    $('err').style.display = 'block';
+    $('run').disabled = false;
+    return;
+  }
+
+  // 1 - encryption artifacts
+  $('d-encrypt').innerHTML =
+    '<span>ciphertext</span><b>'+data.prompt_blob.ciphertext_prefix+'… ('+data.prompt_blob.ciphertext_bytes+' bytes)</b>'+
+    '<span>wrapped key</span><b>'+data.prompt_blob.wrapped_key_prefix+'…</b>'+
+    '<span>nonces</span><b>'+data.prompt_blob.nonce_ct+' / '+data.prompt_blob.nonce_wrap+'</b>'+
+    '<span>stored as</span><b>relay row #'+data.prompt_row+'</b>';
+  stage('s-encrypt','done'); await sleep(450);
+
+  // 2 - shares
+  stage('s-shares','active');
+  $('d-shares').innerHTML = data.shares.map(s =>
+    '<div class="share"><div class="idx">share '+s.index+'</div>'+
+    '<div class="who">held by: '+s.held_by+'</div>'+
+    '<div class="who">'+s.bytes+' bytes · value stays on the '+s.held_by+'</div>'+
+    '<div class="alone">alone: reveals nothing</div></div>').join('');
+  stage('s-shares','done'); await sleep(450);
+
+  // 3 - relay rows (read back from the relay itself)
+  stage('s-relay','active');
+  const rows = (await (await fetch('/api/rows')).json()).rows;
+  $('d-rows').innerHTML = '<tr><th>row</th><th>direction</th><th>ciphertext</th><th>share</th></tr>' +
+    rows.map(r => '<tr><td class="id">#'+r.id+'</td><td>'+r.direction+'</td>'+
+      '<td class="pre">'+r.ciphertext_prefix+'… ('+r.ciphertext_bytes+' B)</td><td>x='+r.share_x+'</td></tr>').join('');
+  stage('s-relay','done'); await sleep(450);
+
+  // 4 - llm + answer
+  stage('s-llm','active');
+  $('d-llm').innerHTML =
+    '<span>recovered</span><b>locally from shares 1+2 (relay share unused)</b>'+
+    '<span>model</span><b>'+data.llm.model+'</b>'+
+    '<span>latency</span><b>'+data.llm.latency_ms+' ms</b>'+
+    '<span>answer stored as</span><b>relay row #'+data.answer_row+' (ciphertext, '+data.answer_blob.ciphertext_bytes+' bytes)</b>';
+  stage('s-llm','done');
+  $('answer-text').textContent = data.llm.answer;
+  $('answer-meta').textContent = 'real hosted call · '+data.llm.model+' · prompt row #'+data.prompt_row+' · answer row #'+data.answer_row;
+  $('answer').classList.add('show');
+  $('run').disabled = false;
+};
+</script>
+</body>
+</html>
