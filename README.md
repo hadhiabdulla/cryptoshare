@@ -19,7 +19,7 @@ The hosted model provider necessarily receives plaintext at inference time, and 
 - The organizer explicitly permits this for the AI pipeline track: "Participants may use pre created cryptographic algorithm and secret sharing mechanisms such as SSS (Shamir's secret sharing)" (hackathon page, https://mathematics-systems-security.devpost.com/).
 - AES-256-GCM from the `cryptography` library; Shamir's Secret Sharing from `pycryptodome` - both vetted, widely reviewed implementations. Security properties cited come from the published schemes, not from this project's own tests.
 - Concrete composition: pycryptodome's Shamir operates on 16-byte secrets, so the 32-byte master key is split as two independent 16-byte blocks (each block is Shamir-split 2-of-3) and recombined block-wise. Each message gets its own random data key (AES-256-GCM), wrapped under the master key, so stored blobs are independent.
-- A rich TUI walks the pipeline live: what stays on the device, what the relay persists, and the documented inference-exposure boundary.
+- A web UI on the loopback machine walks the pipeline live: what stays on the device, what the relay persists, and the documented inference-exposure boundary.
 
 ## Run it
 
