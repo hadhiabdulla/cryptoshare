@@ -95,6 +95,25 @@ def run_pipeline(question: str) -> dict:
     return out
 
 
+LAST_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_run.json")
+
+
+def _load_last():
+    try:
+        with open(LAST_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_last(data):
+    try:
+        with open(LAST_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -116,6 +135,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, json.dumps({"rows": _get("/rows.json")["rows"]}))
             except Exception as e:
                 self._send(502, json.dumps({"error": f"relay unreachable: {e}"}))
+        elif self.path == "/api/last":
+            self._send(200, json.dumps(_load_last()))
         elif self.path == "/api/status":
             try:
                 _get("/rows.json")
@@ -140,7 +161,9 @@ class Handler(BaseHTTPRequestHandler):
             if not question:
                 self._send(400, json.dumps({"error": "empty prompt"}))
                 return
-            self._send(200, json.dumps(run_pipeline(question)))
+            result = run_pipeline(question)
+            _save_last(result)
+            self._send(200, json.dumps(result))
         except Exception as e:
             self._send(500, json.dumps({"error": str(e)}))
 
